@@ -44,12 +44,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in inventory" :key="item.id">
-            <td>{{ item.id }}</td>
+          <tr v-for="item in inventory" :key="item.ID">
+            <td>{{ item.ID }}</td>
             <td>{{ item.name }}</td>
             <td>{{ item.quantity }}</td>
             <td>
-              <button @click="removeItem(item.id)" class="remove-btn">
+              <button @click="removeItem(item.ID)" class="remove-btn">
                 Удалить
               </button>
             </td>
@@ -61,22 +61,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import axios from 'axios'; // <-- Импорт Axios
+const API_URL = 'http://localhost:8080/api/v1/inventory/';
 
+const error = ref('');
 // Имитация данных из БД
-const inventory = ref([
-  { id: 1, name: 'Ноутбук HP', quantity: 15 },
-  { id: 2, name: 'Мышь беспроводная Logitech', quantity: 50 },
-  { id: 3, name: 'Монитор Dell 27"', quantity: 8 }
-]);
-const nextId = ref(4);
-
+const inventory = ref([]);
 // Реактивное состояние для формы
 const newItem = ref({
   name: '',
   quantity: 1,
 });
-const error = ref('');
 
 // Вычисляемое свойство для проверки валидности формы
 const isFormValid = computed(() => {
@@ -88,8 +84,20 @@ const totalItems = computed(() => {
   return inventory.value.reduce((sum, item) => sum + item.quantity, 0);
 });
 
+const fetchInventory = async () => {
+  error.value = '';
+  try {
+    // GET-запрос: загружаем все товары
+    const response = await axios.get(API_URL);
+    inventory.value = response.data;
+  } catch (err) {
+    console.error("Ошибка загрузки склада:", err);
+    error.value = 'Не удалось загрузить данные склада. Проверьте, запущен ли бэкенд на порту 8080.';
+  }
+};
+
 // Метод добавления товара
-const addItem = () => {
+const addItem = async () => {
   error.value = '';
 
   if (!isFormValid.value) {
@@ -97,31 +105,50 @@ const addItem = () => {
     return;
   }
 
-  const name = newItem.value.name.trim();
-  const quantity = newItem.value.quantity;
+  // Данные для отправки на бэкенд (только name и quantity)
+  const dataToSend = {
+    name: newItem.value.name.trim(),
+    quantity: newItem.value.quantity,
+  };
 
-  // Проверка на дубликат (для простоты - можно улучшить)
-  if (inventory.value.some(item => item.name.toLowerCase() === name.toLowerCase())) {
-    error.value = 'Такой товар уже есть на складе. Используйте другую позицию или обновите старую.';
-    return;
+  try {
+    // POST-запрос: создаем новый товар
+    await axios.post(API_URL, dataToSend);
+
+    // Перезагружаем список, чтобы увидеть новый товар, включая его ID
+    await fetchInventory(); 
+    
+    // Очистка формы
+    newItem.value.name = '';
+    newItem.value.quantity = 1;
+    
+  } catch (err) {
+    console.error("Ошибка при добавлении товара:", err);
+    // Выводим ошибку с бэкенда (например, конфликт имени)
+    const backendError = err.response?.data?.error || 'Неизвестная ошибка при добавлении.';
+    error.value = backendError;
   }
-
-  // Добавление товара
-  inventory.value.push({
-    id: nextId.value++,
-    name: name,
-    quantity: quantity
-  });
-
-  // Очистка формы
-  newItem.value.name = '';
-  newItem.value.quantity = 1;
 };
 
 // Метод удаления товара
-const removeItem = (id) => {
-  inventory.value = inventory.value.filter(item => item.id !== id);
+const removeItem = async (id) => {
+  error.value = '';
+  try {
+    // DELETE-запрос: удаляем товар по ID
+    await axios.delete(`${API_URL}${id}`);
+    
+    // Перезагружаем список
+    await fetchInventory();
+    
+  } catch (err) {
+    console.error("Ошибка при удалении товара:", err);
+    error.value = 'Не удалось удалить товар. Возможно, он уже был удален.';
+  }
 };
+
+onMounted(() => {
+  fetchInventory();
+})
 </script>
 
 <style scoped>
