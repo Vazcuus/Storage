@@ -1,2 +1,6 @@
 # Storage
-Storage for business
+Для работы с приложением, необходимо:
+1. Склонировать репозиторий
+2. Установить Docker Desktop
+3. Выполнить команду docker-compose up --build (из папки с проектом)
+
