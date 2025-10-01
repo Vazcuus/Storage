@@ -63,7 +63,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios'; // <-- Импорт Axios
-const API_URL = 'http://localhost:8080/api/v1/inventory/';
+const API_URL = "http://localhost:8080/api/v1/inventory/"
 
 const error = ref('');
 // Имитация данных из БД
